@@ -120,9 +120,9 @@ class ValidationStrategy(object):
         if len(self.performance_recorder.no_improvement_round.items()) == 0:
             return False
         for metric, no_improve_val in self.performance_recorder.no_improvement_round.items():
-            if no_improve_val != 0:
-                return False
-        return True
+            if no_improve_val == 0:
+                return True
+        return False
 
     def check_early_stopping(self,early_stopping_round:int):
         """
