@@ -232,7 +232,10 @@ class HomoSecureBoostingTreeClient(BoostingTree):
         # binning
         data_inst = self.data_alignment(data_inst)
         self.data_bin, self.bin_split_points, self.bin_sparse_points = self.federated_binning(data_inst)
-
+        
+        # fid mapping
+        self.gen_feature_fid_mapping(data_inst.schema)
+        
         # set feature_num
         self.feature_num = self.bin_split_points.shape[0]
 
@@ -266,13 +269,6 @@ class HomoSecureBoostingTreeClient(BoostingTree):
         self.y_hat, self.init_score = self.loss_fn.initialize(self.y) if self.tree_dim == 1 else \
             self.loss_fn.initialize(self.y, self.tree_dim)
 
-        # set loss callback
-        self.callback_meta("loss",
-                           "train",
-                           MetricMeta(name="train",
-                                      metric_type="LOSS",
-                                      extra_metas={"unit_name": "iters"}))
-
         for epoch_idx in range(self.num_trees):
 
             g_h = self.compute_local_grad_and_hess(self.y_hat)
@@ -295,11 +291,6 @@ class HomoSecureBoostingTreeClient(BoostingTree):
 
             # sync loss status
             loss = self.compute_local_loss(self.y, self.y_hat)
-
-            self.callback_metric("loss",
-                                 "train",
-                                 [Metric(epoch_idx, loss)])
-
             self.local_loss_history.append(loss)
             self.aggregator.send_local_loss(loss, self.data_bin.count(), suffix=(epoch_idx,))
 
@@ -317,11 +308,6 @@ class HomoSecureBoostingTreeClient(BoostingTree):
 
             LOGGER.debug('fitting one tree done, cur local loss is {}'.format(loss))
 
-        self.callback_meta("loss",
-                           "train",
-                           MetricMeta(name="train",
-                                      metric_type="LOSS",
-                                      extra_metas={"Best": min(self.local_loss_history)}))
 
         LOGGER.debug('fitting homo decision tree done')
 
