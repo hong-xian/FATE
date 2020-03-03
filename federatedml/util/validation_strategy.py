@@ -111,7 +111,7 @@ class ValidationStrategy(object):
         """
         return self.performance_recorder.no_improvement_round
 
-    def is_best_performance_updated(self):
+    def is_best_performance_updated(self, use_first_metric_only=False):
         """
         check if the validation performance has improved
         Returns bool
@@ -120,9 +120,11 @@ class ValidationStrategy(object):
         if len(self.performance_recorder.no_improvement_round.items()) == 0:
             return False
         for metric, no_improve_val in self.performance_recorder.no_improvement_round.items():
-            if no_improve_val == 0:
-                return True
-        return False
+            if no_improve_val != 0:
+                return False
+            if use_first_metric_only:
+                break
+        return True
 
     def check_early_stopping(self,early_stopping_round:int):
         """
@@ -208,11 +210,6 @@ class ValidationStrategy(object):
             LOGGER.debug('showing eval_result_dict here')
             LOGGER.debug(eval_result_dict)
 
-            # no improve test
-            # global test_var
-            # eval_result_dict['auc'] = test_var
-            # test_var -= 0.1
-
             self.performance_recorder.update(eval_result_dict)
 
             LOGGER.debug('showing cur performances')
@@ -220,8 +217,5 @@ class ValidationStrategy(object):
             LOGGER.debug(self.performance_recorder.no_improvement_round)
 
             if self.sync_status:
-                LOGGER.debug(self.role + ' ' + 'synchronize performance recorder')
                 self.sycn_performance_recorder(epoch)
-                LOGGER.debug(self.performance_recorder.cur_best_performance)
-                LOGGER.debug(self.performance_recorder.no_improvement_round)
 
