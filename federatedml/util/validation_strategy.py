@@ -54,7 +54,7 @@ class ValidationStrategy(object):
                 if validate_data not equal to None, and judge need to validate data according to validation_freqs,
                 validate data will be used for evaluating
     """
-    def __init__(self, role=None, mode=None, validation_freqs=None, early_stopping=None):
+    def __init__(self, role=None, mode=None, validation_freqs=None, early_stopping_rounds=None):
 
         self.validation_freqs = validation_freqs
         self.role = role
@@ -63,10 +63,10 @@ class ValidationStrategy(object):
         self.train_data = None
         self.validate_data = None
         self.sync_status = False
-        self.early_stopping = early_stopping
-        if early_stopping is not None:
+        self.early_stopping_rounds = early_stopping_rounds
+        if early_stopping_rounds is not None:
             self.sync_status = True
-            LOGGER.debug("early stopping round is {}".format(self.early_stopping))
+            LOGGER.debug("early stopping round is {}".format(self.early_stopping_rounds))
 
         self.cur_best_model = None
 
@@ -80,6 +80,8 @@ class ValidationStrategy(object):
 
     def set_validate_data(self, validate_data):
         self.validate_data = validate_data
+        if self.early_stopping_rounds and self.validate_data is None:
+            raise ValueError('validate data is needed when early stopping is enabled')
 
     def set_flowid(self, flowid):
         self.flowid = flowid
@@ -142,7 +144,7 @@ class ValidationStrategy(object):
         LOGGER.info('check early stopping')
         no_improvement_dict = self.performance_recorder.no_improvement_round
         for metric in no_improvement_dict:
-            if no_improvement_dict[metric] >= self.early_stopping:
+            if no_improvement_dict[metric] >= self.early_stopping_rounds:
                 return True
         return False
 
@@ -166,8 +168,13 @@ class ValidationStrategy(object):
         param_name, param_protobuf = model.get_model_param()
         return {meta_name: meta_protobuf, param_name: param_protobuf}
 
+    def need_stop(self):
+        if not self.early_stopping_rounds:
+            return False
+        return self.check_early_stopping()
+
     def has_saved_best_model(self):
-        return (self.early_stopping is not None) and (self.cur_best_model is not None)
+        return (self.early_stopping_rounds is not None) and (self.cur_best_model is not None)
 
     def export_best_model(self):
         return self.cur_best_model
@@ -238,7 +245,7 @@ class ValidationStrategy(object):
             LOGGER.debug(self.performance_recorder.cur_best_performance)
             LOGGER.debug(self.performance_recorder.no_improvement_round)
 
-        if self.early_stopping and self.is_best_performance_updated():
+        if self.early_stopping_rounds and self.is_best_performance_updated():
             self.cur_best_model = self.get_cur_model(model)
             LOGGER.debug('cur best model saved')
 
